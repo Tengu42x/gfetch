@@ -1,22 +1,45 @@
 #!/bin/bash
 
-INSTALL_DIR="$HOME/.local/bin"
-SCRIPT_NAME="gfetch"
+set -e
 
-echo "🔧 Installing $SCRIPT_NAME..."
+echo "Setting up gfetch..."
 
-# 1. Make sure the bin dir exists
-mkdir -p "$INSTALL_DIR"
+# 1. Create virtual environment if it doesn't exist
+if [ ! -d ".venv" ]; then
+    echo "Creating virtual environment..."
+    python3 -m venv .venv
+fi
 
-# 2. Copy or symlink (your choice)
-cp "$SCRIPT_NAME" "$INSTALL_DIR/"
-chmod +x "$INSTALL_DIR/$SCRIPT_NAME"
+# 2. Activate venv and install dependencies
+echo "Installing dependencies..."
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
 
-# 3. Check if it's in PATH
-if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
-    echo "⚠️  $INSTALL_DIR is not in your PATH."
+# 3. Make script executable
+chmod +x gfetch
 
-    # 4. Try to detect shell and update PATH
+# 4. Copy to ~/.local/bin or create a wrapper script
+BIN_DIR="$HOME/.local/bin"
+mkdir -p "$BIN_DIR"
+cp gfetch "$BIN_DIR/"
+
+echo "Installed gfetch to $BIN_DIR"
+
+# 5. Optionally, create a wrapper script that activates venv and runs gfetch
+WRAPPER="$BIN_DIR/gfetch-wrapper"
+cat > "$WRAPPER" << EOF
+#!/bin/bash
+source "$(pwd)/.venv/bin/activate"
+exec "$BIN_DIR/gfetch" "\$@"
+EOF
+chmod +x "$WRAPPER"
+
+echo "You can run gfetch with: gfetch-wrapper"
+echo "Or run directly with ./gfetch inside the repo."
+
+# 6. Check if ~/.local/bin is in PATH
+if ! echo "$PATH" | grep -q "$BIN_DIR"; then
     SHELL_RC=""
     if [[ "$SHELL" == */bash ]]; then
         SHELL_RC="$HOME/.bashrc"
@@ -24,14 +47,13 @@ if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
         SHELL_RC="$HOME/.zshrc"
     fi
 
-    if [[ -n "$SHELL_RC" ]]; then
-        echo "🔧 Adding to your PATH in $SHELL_RC"
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_RC"
-        echo "✅ Done. Please restart your terminal or run: source $SHELL_RC"
+    if [ -n "$SHELL_RC" ]; then
+        echo "Adding $BIN_DIR to your PATH in $SHELL_RC"
+        echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$SHELL_RC"
+        echo "Please restart your terminal or run: source $SHELL_RC"
     else
-        echo "❓ Couldn't auto-detect your shell. Please add this to your shell config:"
-        echo 'export PATH="$HOME/.local/bin:$PATH"'
+        echo "Please add $BIN_DIR to your PATH manually."
     fi
-else
-    echo "✅ Installed! You can now run: gfetch"
 fi
+
+echo "Setup complete!"
