@@ -5,6 +5,7 @@ import subprocess
 import sys
 import getpass
 from datetime import timedelta
+import shutil
 
 # Simple color helper with fallback if termcolor not installed
 try:
@@ -27,26 +28,32 @@ except ImportError:
         print("Failed to install 'psutil'. Please install it manually: pip install psutil")
         sys.exit(1)
 
-# ====== ASCII logo fallback ======
+# ====== ASCII logo with border ======
 def ascii_logo(user, host):
-    return f"""
+    logo = f"""
  ______   _       _              _ 
 |  ___| | |     | |            | |
 | |_ ___| |_ ___| |__   ___  __| |
 |  _/ _ \\ __/ __| '_ \\ / _ \\/ _` |
 | ||  __/ || (__| | | |  __/ (_| |
 \\_| \\___|\\__\\___|_| |_|\\___|\\__,_|
-
+                                  
       {user}@{host}
 """
-    return logo
+    # Add a border around the logo
+    border = "═" * (len(logo.splitlines()[0]) + 2)  # width of the first line
+    return f"{border}\n{logo}\n{border}"
 
 def get_boot_time():
-    try:
-        output = subprocess.check_output(['systemd-analyze']).decode()
-        return output.split('=')[1].strip()
-    except Exception:
-        return "Unavailable"
+    # Check if systemd is available before attempting to use systemd-analyze
+    if shutil.which("systemd-analyze"):
+        try:
+            output = subprocess.check_output(['systemd-analyze']).decode()
+            return output.split('=')[1].strip()
+        except Exception:
+            return "Unavailable"
+    else:
+        return "Systemd not available"
 
 def get_gpu_info():
     try:
@@ -56,12 +63,15 @@ def get_gpu_info():
     except Exception:
         return "Unavailable"
 
+# ====== Main Function to Display Info ======
 def main():
     user = getpass.getuser()
     hostname = platform.node()
 
-    print(ascii_logo(user, hostname))
+    # Get the ASCII logo with user and hostname
+    logo = ascii_logo(user, hostname)
 
+    # System info collection
     uptime = timedelta(seconds=int(psutil.boot_time()))
     boot_time = get_boot_time()
 
@@ -77,8 +87,13 @@ def main():
         "Shell": os.environ.get("SHELL", "Unknown"),
     }
 
-    for k, v in info.items():
-        print(f"{k.ljust(12)}: {v}")
+    # Formatting the content with a nice border around everything
+    border_length = 60  # You can adjust this for different width
+    border = "═" * border_length
+    content = "\n".join([f"{k.ljust(12)}: {v}" for k, v in info.items()])
+    
+    # Print the full bordered output
+    print(f"{border}\n{logo}\n{border}\n\n{content}\n{border}")
 
 if __name__ == "__main__":
     main()
