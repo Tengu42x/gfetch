@@ -1,0 +1,110 @@
+import os
+import platform
+import psutil
+import subprocess
+import argparse
+from datetime import timedelta
+from pyfiglet import figlet_format
+from termcolor import colored
+import getpass
+
+# ====== Themes ======
+THEMES = {
+    'dark':   {'label': 'cyan',    'value': 'white'},
+    'light':  {'label': 'blue',    'value': 'black'},
+    'matrix': {'label': 'green',   'value': 'green'},
+    'retro':  {'label': 'magenta', 'value': 'yellow'}
+}
+
+# ====== Info Fetchers ======
+def get_boot_time():
+    try:
+        output = subprocess.check_output(['systemd-analyze']).decode()
+        return output.split('=')[1].strip()
+    except:
+        return "Unavailable"
+
+def get_gpu_info():
+    try:
+        output = subprocess.check_output(['lspci']).decode()
+        gpus = [l for l in output.splitlines() if 'VGA' in l or '3D controller' in l]
+        return ', '.join(gpus) if gpus else "None found"
+    except:
+        return "Unavailable"
+
+def get_disk_info():
+    u = psutil.disk_usage('/')
+    return f"{u.used // (1024**3)}GB / {u.total // (1024**3)}GB ({u.percent}%)"
+
+def get_network_info():
+    net = psutil.net_io_counters()
+    return f"Sent: {net.bytes_sent // (1024**2)}MB, Received: {net.bytes_recv // (1024**2)}MB"
+
+def get_cpu_temp():
+    temps = psutil.sensors_temperatures()
+    if not temps: return "Unavailable"
+    for sensor in temps:
+        for entry in temps[sensor]:
+            return f"{entry.current}°C"
+    return "Unavailable"
+
+def get_last_login(user):
+    try:
+        out = subprocess.check_output(['last', '-n', '1', user]).decode()
+        return out.split('\n')[0]
+    except:
+        return "Unavailable"
+
+def get_ascii_logo(user, hostname, theme_color):
+    try:
+        art = figlet_format(f"{user}@{hostname}", font="slant")
+        return colored(art, theme_color)
+    except:
+        return f"{user}@{hostname}"
+
+def is_laptop():
+    return os.path.exists('/sys/class/power_supply/BAT0')
+
+# ====== Main Display Function ======
+def display_info(theme='dark', smart=False):
+    user = getpass.getuser()
+    hostname = platform.node()
+    colors = THEMES.get(theme, THEMES['dark'])
+
+    print(get_ascii_logo(user, hostname, colors['label']))
+
+    info = {
+        "OS": f"{platform.system()} {platform.release()}",
+        "Uptime": str(timedelta(seconds=int(psutil.time.time() - psutil.boot_time()))),
+        "Boot Time": get_boot_time(),
+        "CPU": platform.processor(),
+        "Memory": f"{psutil.virtual_memory().used // (1024**3)}GB / {psutil.virtual_memory().total // (1024**3)}GB",
+        "Disk": get_disk_info(),
+        "Network": get_network_info(),
+        "GPU": get_gpu_info(),
+        "Processes": str(len(psutil.pids())),
+        "Shell": os.environ.get("SHELL", "Unknown"),
+        "Last Login": get_last_login(user)
+    }
+
+    # Smart mode: hide GPU/network on headless/VMs or battery on desktop
+    if smart:
+        if not is_laptop():
+            info.pop("CPU Temp", None)
+        if "microsoft" in platform.release().lower():  # Example for WSL
+            info.pop("GPU", None)
+
+    for k, v in info.items():
+        print(colored(k.ljust(12), colors['label']) + colored(str(v), colors['value']))
+
+# ====== CLI Entrypoint ======
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="A better neofetch in Python.")
+    parser.add_argument("--theme", choices=THEMES.keys(), default="dark", help="Select a color theme.")
+    parser.add_argument("--smart", action="store_true", help="Enable smart output for laptops/VMs.")
+    args = parser.parse_args()
+
+   print(colored(f"\nPowered by gfetch 🌀", colors['label']))
+
+
+    display_info(theme=args.theme, smart=args.smart)
