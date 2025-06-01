@@ -1,50 +1,29 @@
 #!/bin/bash
 set -e
 
-# Make sure we're in the script directory (repo root)
-cd "$(dirname "$0")"
+# Paths
+SCRIPT_NAME="gfetch"
+LOCAL_BIN="$HOME/.local/bin"
+TARGET="$LOCAL_BIN/$SCRIPT_NAME"
 
-echo "Creating virtual environment..."
-if [ ! -d ".venv" ]; then
-    python3 -m venv .venv
-fi
+echo "Creating $LOCAL_BIN if it doesn't exist..."
+mkdir -p "$LOCAL_BIN"
 
-echo "Activating virtual environment and installing dependencies..."
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
+echo "Copying $SCRIPT_NAME to $LOCAL_BIN ..."
+cp "$SCRIPT_NAME" "$TARGET"
+chmod +x "$TARGET"
 
-chmod +x gfetch
+# Check if ~/.local/bin is in PATH
+if ! echo "$PATH" | grep -q "$LOCAL_BIN"; then
+  # Detect shell and rc file
+  SHELL_NAME=$(basename "$SHELL")
+  if [[ "$SHELL_NAME" == "bash" ]]; then
+    RC_FILE="$HOME/.bashrc"
+  elif [[ "$SHELL_NAME" == "zsh" ]]; then
+    RC_FILE="$HOME/.zshrc"
+  else
+    RC_FILE=""
+  fi
 
-BIN_DIR="$HOME/.local/bin"
-mkdir -p "$BIN_DIR"
-cp gfetch "$BIN_DIR/"
-
-WRAPPER="$BIN_DIR/gfetch-wrapper"
-cat > "$WRAPPER" << EOF
-#!/bin/bash
-source "$(pwd)/.venv/bin/activate"
-exec "$BIN_DIR/gfetch" "\$@"
-EOF
-chmod +x "$WRAPPER"
-
-echo "Installed gfetch-wrapper in $BIN_DIR"
-
-if ! echo "$PATH" | grep -q "$BIN_DIR"; then
-    SHELL_RC=""
-    if [[ "$SHELL" == */bash ]]; then
-        SHELL_RC="$HOME/.bashrc"
-    elif [[ "$SHELL" == */zsh ]]; then
-        SHELL_RC="$HOME/.zshrc"
-    fi
-
-    if [ -n "$SHELL_RC" ]; then
-        echo "Adding $BIN_DIR to your PATH in $SHELL_RC"
-        echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$SHELL_RC"
-        echo "Please restart your terminal or run: source $SHELL_RC"
-    else
-        echo "Please add $BIN_DIR to your PATH manually."
-    fi
-fi
-
-echo "Setup complete!"
+  if [[ -n "$RC_FILE" ]]; then
+    echo "Adding $LOCAL
