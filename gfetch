@@ -98,14 +98,14 @@ def display_info(theme='dark', smart=False):
     for k, v in info.items():
         print(colored(k.ljust(12), colors['label']) + colored(str(v), colors['value']))
 
+    # Branding footer
+    print(colored(f"\nPowered by gfetch 🌀", colors['label']))
+
 # ====== CLI Entrypoint ======
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A better neofetch in Python.")
     parser.add_argument("--theme", choices=THEMES.keys(), default="dark", help="Select a color theme.")
     parser.add_argument("--smart", action="store_true", help="Enable smart output for laptops/VMs.")
     args = parser.parse_args()
-
-   print(colored(f"\nPowered by gfetch 🌀", colors['label']))
-
 
     display_info(theme=args.theme, smart=args.smart)
