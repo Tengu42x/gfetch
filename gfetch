@@ -28,8 +28,16 @@ except ImportError:
         print("Failed to install 'psutil'. Please install it manually: pip install psutil")
         sys.exit(1)
 
+# ====== Themes and Colors ======
+THEMES = {
+    'dark':   {'border': 'blue', 'logo': 'cyan', 'label': 'green', 'value': 'white'},
+    'light':  {'border': 'magenta', 'logo': 'yellow', 'label': 'blue', 'value': 'black'},
+    'retro':  {'border': 'red', 'logo': 'yellow', 'label': 'green', 'value': 'blue'},
+    'matrix': {'border': 'green', 'logo': 'green', 'label': 'cyan', 'value': 'white'},
+}
+
 # ====== ASCII logo with border ======
-def ascii_logo(user, host):
+def ascii_logo(user, host, theme):
     logo = f"""
  ______   _       _              _ 
 |  ___| | |     | |            | |
@@ -40,9 +48,8 @@ def ascii_logo(user, host):
                                   
       {user}@{host}
 """
-    # Add a border around the logo
     border = "═" * (len(logo.splitlines()[0]) + 2)  # width of the first line
-    return f"{border}\n{logo}\n{border}"
+    return f"{colored(border, theme['border'])}\n{colored(logo, theme['logo'])}\n{colored(border, theme['border'])}"
 
 def get_boot_time():
     # Check if systemd is available before attempting to use systemd-analyze
@@ -68,8 +75,12 @@ def main():
     user = getpass.getuser()
     hostname = platform.node()
 
+    # Choose theme (default to 'dark')
+    theme_choice = 'dark'  # You can change this or allow it as a user input
+    theme = THEMES.get(theme_choice, THEMES['dark'])
+
     # Get the ASCII logo with user and hostname
-    logo = ascii_logo(user, hostname)
+    logo = ascii_logo(user, hostname, theme)
 
     # System info collection
     uptime = timedelta(seconds=int(psutil.boot_time()))
@@ -89,8 +100,8 @@ def main():
 
     # Formatting the content with a nice border around everything
     border_length = 60  # You can adjust this for different width
-    border = "═" * border_length
-    content = "\n".join([f"{k.ljust(12)}: {v}" for k, v in info.items()])
+    border = colored("═" * border_length, theme['border'])
+    content = "\n".join([f"{colored(k.ljust(12), theme['label'])}: {colored(v, theme['value'])}" for k, v in info.items()])
     
     # Print the full bordered output
     print(f"{border}\n{logo}\n{border}\n\n{content}\n{border}")
